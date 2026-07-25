@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>t00tmachine — Audio Converter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0a0a;--bg2:#111111;--surface:#161616;--surface2:#1e1e1e;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+  --purple:#9CFF00;--purple2:#9CFF00;--orange:#f97316;
+  --text:#f0ecff;--muted:rgba(240,236,255,0.45);--muted2:rgba(240,236,255,0.22);
+}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Syne Mono', monospace;font-size:14px;line-height:1.6;min-height:100vh;overflow-x:hidden;}
+
+/* ── DOT GRID ── */
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle,rgba(156,255,0,0.12) 1px,transparent 1px);background-size:28px 28px;pointer-events:none;z-index:0;}
+
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 32px;}
+
+/* ── NAV ── */
+nav{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);background:rgba(13,11,20,0.85);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);}
+.nav-inner{max-width:1100px;margin:0 auto;padding:0 32px;display:flex;justify-content:space-between;align-items:center;height:58px;}
+.nav-logo{font-family:'Syne Mono', monospace;font-size:19px;letter-spacing:0.01em;color:var(--text);}
+.nav-logo span{color:var(--purple2);}
+.nav-badge{font-size:11px;font-weight:500;background:rgba(156,255,0,0.12);color:var(--purple2);border:1px solid rgba(156,255,0,0.3);padding:4px 14px;border-radius:20px;}
+
+/* ── HERO ── */
+.hero{position:relative;padding:100px 0 80px;text-align:center;overflow:hidden;}
+
+/* hero bg lines SVG — concentric radial lines bursting from centre */
+.hero-bg-lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0.35;}
+
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--purple2);border:1px solid rgba(156,255,0,0.3);background:rgba(156,255,0,0.08);padding:5px 16px;border-radius:20px;margin-bottom:28px;}
+.hero-eyebrow::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--purple2);box-shadow:0 0 8px var(--purple2);}
+.hero-title{font-family:'Syne Mono', monospace;font-size:clamp(46px,6.5vw,76px);font-weight:400;line-height:1.06;letter-spacing:-0.01em;margin-bottom:22px;position:relative;}
+.hero-title em{color:var(--purple2);}
+.hero-sub{font-size:15px;color:var(--muted);max-width:460px;margin:0 auto 36px;line-height:1.75;}
+.fmt-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:52px;}
+.fmt-chip{font-size:11px;font-weight:500;letter-spacing:0.06em;color:var(--muted);border:1px solid var(--border2);background:rgba(255,255,255,0.03);padding:5px 13px;border-radius:6px;}
+
+/* ── MARQUEE ── */
+.marquee-wrap{border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(26,21,40,0.6);overflow:hidden;white-space:nowrap;padding:13px 0;}
+.marquee-track{display:inline-flex;animation:marquee 22s linear infinite;}
+.marquee-track:hover{animation-play-state:paused;}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.marquee-item{font-family:'Syne Mono', monospace;font-size:15px;color:var(--muted);padding:0 28px;display:inline-flex;align-items:center;gap:28px;}
+.marquee-dot{width:4px;height:4px;border-radius:50%;background:var(--purple2);display:inline-block;box-shadow:0 0 6px var(--purple2);}
+
+/* ── SECTION LABEL ── */
+.section-label{font-size:11px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--purple2);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.section-label::before{content:'';width:16px;height:1px;background:var(--purple2);}
+
+/* ── GLOW BLOB inline (left/right) ── */
+.inline-glow{position:relative;overflow:hidden;}
+.inline-glow::before,.inline-glow::after{content:'';position:absolute;border-radius:50%;pointer-events:none;z-index:0;}
+.inline-glow::before{width:320px;height:320px;background:radial-gradient(circle,rgba(156,255,0,0.18) 0%,transparent 70%);top:-80px;left:-120px;}
+.inline-glow::after{width:280px;height:280px;background:radial-gradient(circle,rgba(249,115,22,0.12) 0%,transparent 70%);bottom:-80px;right:-100px;}
+
+/* ── DROP ZONE ── */
+#drop-zone{border:1px dashed rgba(156,255,0,0.35);border-radius:14px;padding:56px 32px;text-align:center;cursor:pointer;position:relative;transition:background .2s,border-color .2s;background:rgba(156,255,0,0.03);}
+#drop-zone:hover,#drop-zone.over{background:rgba(156,255,0,0.08);border-color:rgba(156,255,0,0.6);}
+#drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{width:52px;height:52px;border-radius:13px;background:rgba(156,255,0,0.12);border:1px solid rgba(156,255,0,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;}
+.drop-icon svg{width:24px;height:24px;stroke:var(--purple2);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+.drop-title{font-size:15px;font-weight:400;margin-bottom:7px;}
+.drop-sub{font-size:12px;color:var(--muted);}
+
+/* ── GLASS ── */
+.glass{background:rgba(26,21,40,0.75);border:1px solid var(--border2);border-radius:16px;backdrop-filter:blur(8px);}
+
+/* ── SETTINGS ── */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;}
+.settings-panel{padding:26px;}
+.fmt-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+.fmt-pill{font-size:11px;font-weight:500;letter-spacing:0.05em;border:1px solid var(--border2);background:transparent;color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;transition:all .15s;}
+.fmt-pill:hover{border-color:var(--purple2);color:var(--purple2);}
+.fmt-pill.active{background:rgba(156,255,0,0.15);border-color:var(--purple2);color:var(--purple2);}
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+.setting-row:last-child{border:none;}
+.setting-lbl{font-size:12px;color:var(--muted);}
+.setting-row select{font-family:'Syne Mono', monospace;font-size:11px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:5px 10px;border-radius:6px;cursor:pointer;outline:none;appearance:none;transition:border-color .15s;}
+.setting-row select:hover,.setting-row select:focus{border-color:var(--purple2);}
+
+/* ── QUEUE ── */
+.queue-wrap{margin-top:20px;}
+.queue-inner{padding:0 26px 4px;}
+.queue-header{display:flex;justify-content:space-between;align-items:center;padding:20px 0 12px;border-bottom:1px solid var(--border);}
+#queue-list{list-style:none;}
+.q-item{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--border);}
+.q-num{font-size:11px;color:var(--muted2);min-width:22px;font-weight:500;}
+.q-info{flex:1;min-width:0;}
+.q-name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;}
+.q-track{height:1px;background:rgba(255,255,255,0.07);width:100%;border-radius:1px;}
+.q-fill{height:1px;background:var(--purple2);width:0%;transition:width .3s;border-radius:1px;box-shadow:0 0 6px var(--purple);}
+.q-status{font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;min-width:84px;text-align:right;}
+.q-status.waiting{color:var(--muted2);}
+.q-status.running{color:var(--purple2);}
+.q-status.done{color:#4ade80;}
+.q-status.error{color:#f87171;}
+.q-dl{font-size:10px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--purple2);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px;}
+.q-rm{font-size:11px;color:var(--muted2);background:none;border:none;cursor:pointer;padding:0 0 0 8px;transition:color .15s;}
+.q-rm:hover{color:#f87171;}
+.empty-state{padding:44px 0;text-align:center;font-size:12px;color:var(--muted2);letter-spacing:0.06em;text-transform:uppercase;}
+.convert-bar{display:flex;align-items:center;gap:12px;padding:20px 26px 26px;}
+#convert-btn{font-family:'Syne Mono', monospace;font-size:12px;font-weight:500;letter-spacing:0.06em;background:var(--purple);color:#0a0a0a;border:none;padding:12px 30px;border-radius:9px;cursor:pointer;transition:opacity .15s,box-shadow .15s;box-shadow:0 0 26px rgba(156,255,0,0.35);}
+#convert-btn:not(:disabled):hover{opacity:.88;box-shadow:0 0 36px rgba(156,255,0,0.5);}
+#convert-btn:disabled{opacity:.3;cursor:not-allowed;box-shadow:none;}
+#clear-btn{font-family:'Syne Mono', monospace;font-size:12px;font-weight:400;background:transparent;color:var(--muted);border:1px solid var(--border2);padding:11px 22px;border-radius:9px;cursor:pointer;transition:all .15s;}
+#clear-btn:hover{border-color:var(--border2);color:var(--text);}
+#status-msg{font-size:11px;color:var(--muted);margin-left:4px;}
+
+/* ── STATS with orange dots decoration ── */
+.stats-section{position:relative;margin-top:40px;overflow:hidden;}
+.stats-deco{position:absolute;inset:0;pointer-events:none;z-index:0;}
+.stats-grid{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border2);border-radius:16px;overflow:hidden;}
+.stat-cell{background:var(--surface);padding:30px 26px;transition:background .15s;}
+.stat-cell:hover{background:var(--surface2);}
+.stat-num{font-family:'Syne Mono', monospace;font-size:38px;font-weight:400;color:var(--text);margin-bottom:5px;line-height:1;}
+.stat-num.accent{color:var(--purple2);}
+.stat-lbl{font-size:11px;color:var(--muted);letter-spacing:0.04em;}
+
+/* ── CTA BAND (the orange dot panels) ── */
+.cta-band{position:relative;margin-top:48px;border-radius:16px;overflow:hidden;background:var(--surface);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;min-height:160px;padding:40px 32px;text-align:center;}
+.cta-band-bg{position:absolute;inset:0;pointer-events:none;}
+.cta-band-content{position:relative;z-index:1;}
+.cta-band h2{font-family:'Syne Mono', monospace;font-size:28px;font-weight:400;line-height:1.3;margin-bottom:10px;}
+.cta-band p{font-size:13px;color:var(--muted);margin-bottom:0;}
+
+/* ── LOG ── */
+#log-section{margin-top:24px;display:none;}
+#log{font-family:'Syne Mono', monospace;font-size:10px;line-height:1.7;color:var(--muted2);max-height:100px;overflow-y:auto;padding:14px 16px;border-radius:8px;background:rgba(0,0,0,0.3);border:1px solid var(--border);word-break:break-all;}
+
+/* ── FOOTER ── */
+footer{margin-top:64px;border-top:1px solid var(--border);padding:24px 0;}
+.footer-inner{max-width:1100px;margin:0 auto;padding:0 32px;display:flex;justify-content:space-between;align-items:center;}
+.footer-logo{font-family:'Syne Mono', monospace;font-size:17px;color:var(--muted);}
+.footer-logo span{color:var(--purple2);}
+.footer-right{font-size:11px;color:var(--muted2);}
+
+/* ── LOADER ── */
+#loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:20px;}
+#loader.hidden{display:none;}
+.loader-logo{font-family:'Syne Mono', monospace;font-size:24px;}
+.loader-logo span{color:var(--purple2);}
+.loader-track{width:200px;height:1px;background:rgba(255,255,255,0.1);border-radius:1px;}
+#loader-bar{height:1px;background:var(--purple2);width:0%;transition:width .4s;border-radius:1px;box-shadow:0 0 8px var(--purple);}
+.loader-msg{font-size:11px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;}
+
+@media(max-width:680px){
+  .settings-grid{grid-template-columns:1fr;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .hero-title{font-size:42px;}
+  .wrap{padding:0 20px;}
+  nav .nav-inner{padding:0 20px;}
+  .footer-inner{padding:0 20px;flex-direction:column;gap:10px;text-align:center;}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-logo">t00t<span>machine</span></div>
+  <div class="loader-track"><div id="loader-bar"></div></div>
+  <div class="loader-msg" id="loader-msg">Loading FFmpeg…</div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">t00t<span>machine</span></div>
+    <div><span id="ffmpeg-status" class="nav-badge">Loading…</span></div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <!-- Radial burst lines — recreated from Primora's hero SVG -->
+  <svg class="hero-bg-lines" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="rg" cx="50%" cy="50%" r="55%">
+        <stop offset="0%" stop-color="#9CFF00" stop-opacity="0.4"/>
+        <stop offset="60%" stop-color="#9CFF00" stop-opacity="0.08"/>
+        <stop offset="100%" stop-color="#9CFF00" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <!-- soft radial glow -->
+    <ellipse cx="600" cy="300" rx="420" ry="260" fill="url(#rg)"/>
+    <!-- radial lines bursting from centre — like Primora's hero background -->
+    <g stroke="#9CFF00" stroke-opacity="0.22" stroke-width="0.8" fill="none">
+      <!-- 36 lines radiating outward -->
+      <line x1="600" y1="300" x2="600" y2="0"/>
+      <line x1="600" y1="300" x2="766" y2="12"/>
+      <line x1="600" y1="300" x2="916" y2="56"/>
+      <line x1="600" y1="300" x2="1032" y2="140"/>
+      <line x1="600" y1="300" x2="1100" y2="260"/>
+      <line x1="600" y1="300" x2="1200" y2="300"/>
+      <line x1="600" y1="300" x2="1100" y2="340"/>
+      <line x1="600" y1="300" x2="1032" y2="460"/>
+      <line x1="600" y1="300" x2="916" y2="544"/>
+      <line x1="600" y1="300" x2="766" y2="588"/>
+      <line x1="600" y1="300" x2="600" y2="600"/>
+      <line x1="600" y1="300" x2="434" y2="588"/>
+      <line x1="600" y1="300" x2="284" y2="544"/>
+      <line x1="600" y1="300" x2="168" y2="460"/>
+      <line x1="600" y1="300" x2="100" y2="340"/>
+      <line x1="600" y1="300" x2="0" y2="300"/>
+      <line x1="600" y1="300" x2="100" y2="260"/>
+      <line x1="600" y1="300" x2="168" y2="140"/>
+      <line x1="600" y1="300" x2="284" y2="56"/>
+      <line x1="600" y1="300" x2="434" y2="12"/>
+      <!-- diagonal lines for denser fill -->
+      <line x1="600" y1="300" x2="840" y2="34"/>
+      <line x1="600" y1="300" x2="980" y2="96"/>
+      <line x1="600" y1="300" x2="1075" y2="200"/>
+      <line x1="600" y1="300" x2="1155" y2="420"/>
+      <line x1="600" y1="300" x2="990" y2="510"/>
+      <line x1="600" y1="300" x2="840" y2="566"/>
+      <line x1="600" y1="300" x2="360" y2="566"/>
+      <line x1="600" y1="300" x2="210" y2="510"/>
+      <line x1="600" y1="300" x2="45" y2="420"/>
+      <line x1="600" y1="300" x2="125" y2="200"/>
+      <line x1="600" y1="300" x2="220" y2="96"/>
+      <line x1="600" y1="300" x2="360" y2="34"/>
+    </g>
+    <!-- concentric rings -->
+    <circle cx="600" cy="300" r="120" stroke="#9CFF00" stroke-opacity="0.1" stroke-width="0.6" fill="none"/>
+    <circle cx="600" cy="300" r="220" stroke="#9CFF00" stroke-opacity="0.07" stroke-width="0.6" fill="none"/>
+    <circle cx="600" cy="300" r="340" stroke="#9CFF00" stroke-opacity="0.05" stroke-width="0.6" fill="none"/>
+    <circle cx="600" cy="300" r="460" stroke="#9CFF00" stroke-opacity="0.04" stroke-width="0.6" fill="none"/>
+  </svg>
+
+  <!-- Decorative bloom / flower shape (top right, like Primora's organic graphic) -->
+  <svg style="position:absolute;top:-20px;right:80px;width:180px;height:180px;opacity:0.18;pointer-events:none;" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" stroke="#9CFF00" stroke-width="0.8">
+      <!-- petals radiating from centre — 12 petals -->
+      <ellipse cx="100" cy="100" rx="18" ry="52" fill="rgba(156,255,0,0.06)" stroke="#9CFF00" transform="rotate(0 100 100)"/>
+      <ellipse cx="100" cy="100" rx="18" ry="52" fill="rgba(156,255,0,0.06)" stroke="#9CFF00" transform="rotate(30 100 100)"/>
+      <ellipse cx="100" cy="100" rx="18" ry="52" fill="rgba(156,255,0,0.06)" stroke="#9CFF00" transform="rotate(60 100 100)"/>
+      <ellipse cx="100" cy="100" rx="18" ry="52" fill="rgba(156,255,0,0.06)" stroke="#9CFF00" transform="rotate(90 100 100)"/>
+      <ellipse cx="100" cy="100" rx="18" ry="52" fill="rgba(156,255,0,0.06)" stroke="#9CFF00" transform="rotate(120 100 100)"/>
+      <ellipse cx="100" cy="100" rx="18" ry="52" fill="rgba(156,255,0,0.06)" stroke="#9CFF00" transform="rotate(150 100 100)"/>
+      <circle cx="100" cy="100" r="14" fill="rgba(156,255,0,0.15)" stroke="#9CFF00"/>
+      <circle cx="100" cy="100" r="6" fill="#9CFF00"/>
+    </g>
+  </svg>
+
+  <div style="position:relative;z-index:2;">
+    <div class="hero-eyebrow" id="hero-eyebrow">Today, <span id="hero-date">—</span></div>
+    <h1 class="hero-title" id="hero-title" style="min-height:2.2em;">&#8203;</h1>
+    <p class="hero-sub" id="hero-sub" style="min-height:3em;">&#8203;</p>
+    <div class="fmt-row">
+      <span class="fmt-chip">FLAC</span>
+      <span class="fmt-chip">AIFF</span>
+      <span class="fmt-chip">WAV</span>
+      <span class="fmt-chip">MP3</span>
+      <span class="fmt-chip">AAC</span>
+      <span class="fmt-chip">OGG</span>
+      <span class="fmt-chip">OPUS</span>
+      <span class="fmt-chip">CAF</span>
+    </div>
+  </div>
+</div>
+
+<!-- MARQUEE STRIP -->
+<div class="marquee-wrap">
+  <div class="marquee-track">
+    <span class="marquee-item">FLAC <span class="marquee-dot"></span></span>
+    <span class="marquee-item">AIFF <span class="marquee-dot"></span></span>
+    <span class="marquee-item">WAV <span class="marquee-dot"></span></span>
+    <span class="marquee-item">MP3 <span class="marquee-dot"></span></span>
+    <span class="marquee-item">AAC <span class="marquee-dot"></span></span>
+    <span class="marquee-item">OGG <span class="marquee-dot"></span></span>
+    <span class="marquee-item">OPUS <span class="marquee-dot"></span></span>
+    <span class="marquee-item">CAF <span class="marquee-dot"></span></span>
+    <span class="marquee-item">In-browser <span class="marquee-dot"></span></span>
+    <span class="marquee-item">Zero uploads <span class="marquee-dot"></span></span>
+    <span class="marquee-item">No limits <span class="marquee-dot"></span></span>
+    <!-- duplicate for seamless loop -->
+    <span class="marquee-item">FLAC <span class="marquee-dot"></span></span>
+    <span class="marquee-item">AIFF <span class="marquee-dot"></span></span>
+    <span class="marquee-item">WAV <span class="marquee-dot"></span></span>
+    <span class="marquee-item">MP3 <span class="marquee-dot"></span></span>
+    <span class="marquee-item">AAC <span class="marquee-dot"></span></span>
+    <span class="marquee-item">OGG <span class="marquee-dot"></span></span>
+    <span class="marquee-item">OPUS <span class="marquee-dot"></span></span>
+    <span class="marquee-item">CAF <span class="marquee-dot"></span></span>
+    <span class="marquee-item">In-browser <span class="marquee-dot"></span></span>
+    <span class="marquee-item">Zero uploads <span class="marquee-dot"></span></span>
+    <span class="marquee-item">No limits <span class="marquee-dot"></span></span>
+  </div>
+</div>
+
+<div class="wrap" style="padding-top:48px;">
+
+  <!-- DROP ZONE -->
+  <div class="section-label">Drop your files</div>
+  <div id="drop-zone" class="inline-glow">
+    <input type="file" id="file-input" accept="audio/*,.flac,.aiff,.aif,.wav,.mp3,.aac,.ogg,.opus,.alac,.m4a,.wma,.caf" multiple>
+    <div style="position:relative;z-index:1;">
+      <div class="drop-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="drop-title">Drag files here, or click to browse</div>
+      <div class="drop-sub">Any audio format · Multiple files · No size limit</div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="settings-grid">
+    <div class="glass settings-panel">
+      <div class="section-label">Target format</div>
+      <div class="fmt-pills">
+        <button class="fmt-pill" data-fmt="flac">FLAC</button>
+        <button class="fmt-pill active" data-fmt="aiff">AIFF</button>
+        <button class="fmt-pill" data-fmt="wav">WAV</button>
+        <button class="fmt-pill" data-fmt="mp3">MP3</button>
+        <button class="fmt-pill" data-fmt="aac">AAC</button>
+        <button class="fmt-pill" data-fmt="ogg">OGG</button>
+        <button class="fmt-pill" data-fmt="opus">OPUS</button>
+        <button class="fmt-pill" data-fmt="caf">CAF</button>
+      </div>
+    </div>
+    <div class="glass settings-panel">
+      <div class="section-label">Output settings</div>
+      <div class="setting-row">
+        <span class="setting-lbl">Bit depth</span>
+        <select id="bit-depth"><option value="16">16-bit</option><option value="24" selected>24-bit</option><option value="32">32-bit float</option></select>
+      </div>
+      <div class="setting-row">
+        <span class="setting-lbl">Sample rate</span>
+        <select id="sample-rate"><option value="44100" selected>44.1 kHz</option><option value="48000">48 kHz</option><option value="88200">88.2 kHz</option><option value="96000">96 kHz</option><option value="192000">192 kHz</option></select>
+      </div>
+      <div class="setting-row" id="mp3-row" style="display:none">
+        <span class="setting-lbl">MP3 bitrate</span>
+        <select id="mp3-bitrate"><option value="128">128 kbps</option><option value="192">192 kbps</option><option value="256">256 kbps</option><option value="320" selected>320 kbps</option></select>
+      </div>
+      <div class="setting-row">
+        <span class="setting-lbl">Channels</span>
+        <select id="channels"><option value="0" selected>Keep original</option><option value="1">Mono</option><option value="2">Stereo</option></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUEUE -->
+  <div class="queue-wrap glass">
+    <div class="queue-inner">
+      <div class="queue-header">
+        <div class="section-label" style="margin:0;">Queue</div>
+        <span style="font-size:11px;color:var(--muted2);" id="queue-count">0 files</span>
+      </div>
+      <ul id="queue-list"></ul>
+      <div id="empty-state" class="empty-state">No files yet — drop some above</div>
+    </div>
+    <div class="convert-bar">
+      <button id="convert-btn" disabled>Convert all</button>
+      <button id="clear-btn">Clear</button>
+      <span id="status-msg"></span>
+    </div>
+  </div>
+
+  <!-- STATS with orange dot scatter decoration -->
+  <div class="stats-section">
+    <!-- Left orange dot scatter (like Primora's CTA panels) -->
+    <svg class="stats-deco" viewBox="0 0 1100 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <!-- left side orange dots -->
+      <g fill="#f97316" opacity="0.35">
+        <rect x="8"  y="22"  width="4" height="4" rx="1"/>
+        <rect x="24" y="10"  width="4" height="4" rx="1"/>
+        <rect x="40" y="36"  width="4" height="4" rx="1"/>
+        <rect x="16" y="54"  width="4" height="4" rx="1"/>
+        <rect x="52" y="18"  width="4" height="4" rx="1"/>
+        <rect x="68" y="46"  width="4" height="4" rx="1"/>
+        <rect x="32" y="70"  width="4" height="4" rx="1"/>
+        <rect x="80" y="28"  width="4" height="4" rx="1"/>
+        <rect x="12" y="88"  width="4" height="4" rx="1"/>
+        <rect x="56" y="80"  width="4" height="4" rx="1"/>
+        <rect x="92" y="62"  width="4" height="4" rx="1"/>
+        <rect x="20" y="110" width="4" height="4" rx="1"/>
+        <rect x="72" y="100" width="4" height="4" rx="1"/>
+        <rect x="44" y="124" width="4" height="4" rx="1"/>
+        <rect x="88" y="138" width="4" height="4" rx="1"/>
+        <rect x="28" y="150" width="4" height="4" rx="1"/>
+        <rect x="60" y="160" width="4" height="4" rx="1"/>
+        <rect x="8"  y="172" width="4" height="4" rx="1"/>
+        <rect x="96" y="176" width="4" height="4" rx="1"/>
+        <rect x="48" y="186" width="4" height="4" rx="1"/>
+      </g>
+      <!-- right side orange dots -->
+      <g fill="#f97316" opacity="0.35">
+        <rect x="1002" y="22"  width="4" height="4" rx="1"/>
+        <rect x="1018" y="10"  width="4" height="4" rx="1"/>
+        <rect x="1034" y="36"  width="4" height="4" rx="1"/>
+        <rect x="1050" y="54"  width="4" height="4" rx="1"/>
+        <rect x="1066" y="18"  width="4" height="4" rx="1"/>
+        <rect x="1082" y="46"  width="4" height="4" rx="1"/>
+        <rect x="1010" y="70"  width="4" height="4" rx="1"/>
+        <rect x="1026" y="28"  width="4" height="4" rx="1"/>
+        <rect x="1042" y="88"  width="4" height="4" rx="1"/>
+        <rect x="1058" y="80"  width="4" height="4" rx="1"/>
+        <rect x="1074" y="62"  width="4" height="4" rx="1"/>
+        <rect x="1090" y="110" width="4" height="4" rx="1"/>
+        <rect x="1006" y="100" width="4" height="4" rx="1"/>
+        <rect x="1022" y="124" width="4" height="4" rx="1"/>
+        <rect x="1038" y="138" width="4" height="4" rx="1"/>
+        <rect x="1054" y="150" width="4" height="4" rx="1"/>
+        <rect x="1070" y="160" width="4" height="4" rx="1"/>
+        <rect x="1086" y="172" width="4" height="4" rx="1"/>
+        <rect x="1014" y="186" width="4" height="4" rx="1"/>
+        <rect x="1046" y="176" width="4" height="4" rx="1"/>
+      </g>
+    </svg>
+    <div class="stats-grid">
+      <div class="stat-cell">
+        <div class="stat-num accent" id="stat-converted">0</div>
+        <div class="stat-lbl">Files converted</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">8</div>
+        <div class="stat-lbl">Output formats</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">∞</div>
+        <div class="stat-lbl">File size limit</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">0%</div>
+        <div class="stat-lbl">Data sent to server</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div id="log-section">
+    <div class="section-label" style="margin-top:28px;">FFmpeg log</div>
+    <div id="log"></div>
+  </div>
+
+  <!-- CTA BAND (orange dot scatter panels on either side, like Primora's CTA section) -->
+  <div class="cta-band" style="margin-top:48px;">
+    <svg class="cta-band-bg" viewBox="0 0 1100 160" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <!-- left panel orange dots -->
+      <g fill="#f97316" opacity="0.4">
+        <rect x="0" y="0" width="200" height="160" fill="rgba(156,255,0,0.04)"/>
+        <rect x="12" y="16" width="5" height="5" rx="1"/><rect x="32" y="8"  width="5" height="5" rx="1"/>
+        <rect x="52" y="28" width="5" height="5" rx="1"/><rect x="18" y="44" width="5" height="5" rx="1"/>
+        <rect x="68" y="12" width="5" height="5" rx="1"/><rect x="88" y="36" width="5" height="5" rx="1"/>
+        <rect x="38" y="60" width="5" height="5" rx="1"/><rect x="104" y="20" width="5" height="5" rx="1"/>
+        <rect x="8"  y="76" width="5" height="5" rx="1"/><rect x="74" y="68" width="5" height="5" rx="1"/>
+        <rect x="116" y="52" width="5" height="5" rx="1"/><rect x="24" y="96" width="5" height="5" rx="1"/>
+        <rect x="90" y="84" width="5" height="5" rx="1"/><rect x="56" y="112" width="5" height="5" rx="1"/>
+        <rect x="132" y="72" width="5" height="5" rx="1"/><rect x="14" y="128" width="5" height="5" rx="1"/>
+        <rect x="76" y="136" width="5" height="5" rx="1"/><rect x="108" y="120" width="5" height="5" rx="1"/>
+        <rect x="44" y="148" width="5" height="5" rx="1"/><rect x="148" y="100" width="5" height="5" rx="1"/>
+        <rect x="164" y="40" width="5" height="5" rx="1"/><rect x="180" y="80" width="5" height="5" rx="1"/>
+        <rect x="140" y="140" width="5" height="5" rx="1"/><rect x="192" y="16" width="5" height="5" rx="1"/>
+      </g>
+      <!-- right panel orange dots -->
+      <g fill="#f97316" opacity="0.4">
+        <rect x="900" y="0" width="200" height="160" fill="rgba(156,255,0,0.04)"/>
+        <rect x="912" y="16" width="5" height="5" rx="1"/><rect x="932" y="8"  width="5" height="5" rx="1"/>
+        <rect x="952" y="28" width="5" height="5" rx="1"/><rect x="918" y="44" width="5" height="5" rx="1"/>
+        <rect x="968" y="12" width="5" height="5" rx="1"/><rect x="988" y="36" width="5" height="5" rx="1"/>
+        <rect x="938" y="60" width="5" height="5" rx="1"/><rect x="1004" y="20" width="5" height="5" rx="1"/>
+        <rect x="908" y="76" width="5" height="5" rx="1"/><rect x="974" y="68" width="5" height="5" rx="1"/>
+        <rect x="1016" y="52" width="5" height="5" rx="1"/><rect x="924" y="96" width="5" height="5" rx="1"/>
+        <rect x="990" y="84" width="5" height="5" rx="1"/><rect x="956" y="112" width="5" height="5" rx="1"/>
+        <rect x="1032" y="72" width="5" height="5" rx="1"/><rect x="914" y="128" width="5" height="5" rx="1"/>
+        <rect x="976" y="136" width="5" height="5" rx="1"/><rect x="1008" y="120" width="5" height="5" rx="1"/>
+        <rect x="944" y="148" width="5" height="5" rx="1"/><rect x="1048" y="100" width="5" height="5" rx="1"/>
+        <rect x="1064" y="40" width="5" height="5" rx="1"/><rect x="1080" y="80" width="5" height="5" rx="1"/>
+        <rect x="1040" y="140" width="5" height="5" rx="1"/><rect x="1092" y="16" width="5" height="5" rx="1"/>
+      </g>
+      <!-- purple glow left -->
+      <radialGradient id="cg1" cx="0%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#9CFF00" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#9CFF00" stop-opacity="0"/>
+      </radialGradient>
+      <rect x="0" y="0" width="300" height="160" fill="url(#cg1)"/>
+      <!-- purple glow right -->
+      <radialGradient id="cg2" cx="100%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#9CFF00" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#9CFF00" stop-opacity="0"/>
+      </radialGradient>
+      <rect x="800" y="0" width="300" height="160" fill="url(#cg2)"/>
+    </svg>
+    <div class="cta-band-content">
+      <h2>Runs entirely on your machine.</h2>
+      <p>No account. No uploads. No expiry. Just open the file and convert.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER with marquee logo strip like Primora -->
+<div class="marquee-wrap" style="margin-top:48px;border-bottom:none;">
+  <div class="marquee-track" style="animation-direction:reverse;animation-duration:28s;">
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+    <span class="marquee-item" style="font-style:normal;font-family:'Syne Mono', monospace;font-size:13px;letter-spacing:0.06em;opacity:0.3;">T00TMACHINE <span class="marquee-dot"></span></span>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">t00t<span>machine</span></div>
+    <div class="footer-right">Powered by FFmpeg.wasm · runs entirely in your browser</div>
+  </div>
+</footer>
+
+<script type="module">
+import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { fetchFile, toBlobURL } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js';
+
+const loader=document.getElementById('loader'),loaderBar=document.getElementById('loader-bar'),loaderMsg=document.getElementById('loader-msg'),ffStatus=document.getElementById('ffmpeg-status');
+const dropZone=document.getElementById('drop-zone'),fileInput=document.getElementById('file-input');
+const queueList=document.getElementById('queue-list'),emptyState=document.getElementById('empty-state'),queueCount=document.getElementById('queue-count');
+const convertBtn=document.getElementById('convert-btn'),clearBtn=document.getElementById('clear-btn'),statusMsg=document.getElementById('status-msg');
+const logSection=document.getElementById('log-section'),logEl=document.getElementById('log'),statConv=document.getElementById('stat-converted');
+let ffmpeg=null,ffReady=false,files=[],converted=0,running=false,fmt='aiff';
+const EXT={flac:'flac',aiff:'aiff',wav:'wav',mp3:'mp3',aac:'m4a',ogg:'ogg',opus:'opus',caf:'caf'};
+const MIME={flac:'audio/flac',aiff:'audio/aiff',wav:'audio/wav',mp3:'audio/mpeg',aac:'audio/aac',ogg:'audio/ogg',opus:'audio/opus',caf:'audio/x-caf'};
+
+async function loadFF(){
+  try{
+    loaderBar.style.width='10%';loaderMsg.textContent='Loading FFmpeg…';
+    ffmpeg=new FFmpeg();
+    ffmpeg.on('log',({message})=>{logEl.textContent+=message+'\n';logEl.scrollTop=logEl.scrollHeight;});
+    ffmpeg.on('progress',({progress})=>{const i=files.findIndex(f=>f.status==='running');if(i>=0){const b=document.getElementById('bar-'+i);if(b)b.style.width=Math.round(progress*100)+'%';}});
+    loaderBar.style.width='30%';loaderMsg.textContent='Fetching core…';
+    const base='https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
+    await ffmpeg.load({coreURL:await toBlobURL(`${base}/ffmpeg-core.js`,'text/javascript'),wasmURL:await toBlobURL(`${base}/ffmpeg-core.wasm`,'application/wasm')});
+    loaderBar.style.width='100%';loaderMsg.textContent='Ready';
+    ffReady=true;ffStatus.textContent='Ready';
+    ffStatus.style.background='rgba(74,222,128,0.12)';ffStatus.style.color='#4ade80';ffStatus.style.borderColor='rgba(74,222,128,0.3)';
+    logSection.style.display='block';
+    setTimeout(()=>loader.classList.add('hidden'),400);
+  }catch(e){loaderMsg.textContent='Failed — check console';ffStatus.textContent='Failed';console.error(e);setTimeout(()=>loader.classList.add('hidden'),2500);}
+}
+loadFF();
+
+document.querySelectorAll('.fmt-pill').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.fmt-pill').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');fmt=b.dataset.fmt;
+    document.getElementById('mp3-row').style.display=fmt==='mp3'?'flex':'none';
+  });
+});
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('over');addFiles([...e.dataTransfer.files]);});
+fileInput.addEventListener('change',()=>addFiles([...fileInput.files]));
+
+function addFiles(inc){
+  inc.filter(f=>f.type.startsWith('audio/')||/\.(flac|aiff?|wav|mp3|m4a|aac|ogg|opus|caf|wma|alac)$/i.test(f.name))
+    .forEach(f=>files.push({file:f,status:'waiting',blob:null}));
+  render();sync();
+}
+function render(){
+  queueList.innerHTML='';
+  emptyState.style.display=files.length===0?'block':'none';
+  queueCount.textContent=`${files.length} file${files.length!==1?'s':''}`;
+  files.forEach((item,i)=>{
+    const li=document.createElement('li');li.className='q-item';
+    const st={waiting:'Queued',running:'Converting',done:'Done ✓',error:'Error'}[item.status];
+    li.innerHTML=`<span class="q-num">${String(i+1).padStart(2,'0')}</span><div class="q-info"><div class="q-name" title="${item.file.name}">${item.file.name}</div><div class="q-track"><div class="q-fill" id="bar-${i}" style="width:${item.status==='done'?'100':'0'}%"></div></div></div><span class="q-status ${item.status}">${st}</span>${item.status==='done'&&item.blob?`<button class="q-dl" data-i="${i}">Download</button>`:''}${item.status!=='running'?`<button class="q-rm" data-i="${i}">✕</button>`:''}`;
+    queueList.appendChild(li);
+  });
+  queueList.querySelectorAll('.q-dl').forEach(b=>b.addEventListener('click',()=>dl(+b.dataset.i)));
+  queueList.querySelectorAll('.q-rm').forEach(b=>b.addEventListener('click',()=>{files.splice(+b.dataset.i,1);render();sync();}));
+}
+function dl(i){
+  const item=files[i];if(!item.blob)return;
+  const ext=EXT[fmt]||fmt,name=item.file.name.replace(/\.[^.]+$/,''),url=URL.createObjectURL(item.blob);
+  const a=document.createElement('a');a.href=url;a.download=`${name}.${ext}`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+}
+function sync(){convertBtn.disabled=!ffReady||!files.some(f=>f.status==='waiting')||running;}
+clearBtn.addEventListener('click',()=>{if(running)return;files=[];render();sync();statusMsg.textContent='';});
+convertBtn.addEventListener('click',convertAll);
+async function convertAll(){
+  if(!ffReady||running)return;
+  running=true;sync();
+  const ext=EXT[fmt]||fmt,sr=document.getElementById('sample-rate').value,bd=document.getElementById('bit-depth').value,ch=document.getElementById('channels').value,mb=document.getElementById('mp3-bitrate').value;
+  for(let i=0;i<files.length;i++){
+    const item=files[i];if(item.status!=='waiting')continue;
+    item.status='running';render();statusMsg.textContent=`Converting ${i+1}/${files.length}…`;
+    try{
+      const inn=`in_${i}`,out=`out_${i}.${ext}`;
+      await ffmpeg.writeFile(inn,await fetchFile(item.file));
+      const args=['-i',inn];
+      if(ch!=='0')args.push('-ac',ch);
+      args.push('-ar',sr);
+      if(fmt==='mp3')args.push('-b:a',`${mb}k`);
+      else if(fmt==='aac')args.push('-c:a','aac','-b:a','256k');
+      else if(fmt==='opus')args.push('-c:a','libopus','-b:a','192k');
+      else if(fmt==='ogg')args.push('-c:a','libvorbis','-q:a','6');
+      else if(fmt==='flac'){args.push('-c:a','flac','-sample_fmt',bd==='16'?'s16':'s32');}
+      else if(fmt==='aiff')args.push('-c:a','pcm_s16be');
+      else if(fmt==='wav'||fmt==='caf'){args.push('-c:a',`pcm_${bd==='32'?'f32le':bd==='24'?'s24le':'s16le'}`);}
+      args.push(out);
+      await ffmpeg.exec(args);
+      const data=await ffmpeg.readFile(out);
+      item.blob=new Blob([data.buffer],{type:MIME[fmt]||'audio/octet-stream'});
+      item.status='done';converted++;statConv.textContent=converted;
+      await ffmpeg.deleteFile(inn).catch(()=>{});await ffmpeg.deleteFile(out).catch(()=>{});
+    }catch(e){item.status='error';console.error(e);}
+    render();
+  }
+  running=false;
+  const done=files.filter(f=>f.status==='done').length,err=files.filter(f=>f.status==='error').length;
+  statusMsg.textContent=err?`${done} converted · ${err} failed`:`${done} file${done!==1?'s':''} converted`;
+  sync();
+}
+</script>
+<script>
+(async function loadFact() {
+  const titleEl = document.getElementById('hero-title');
+  const subEl   = document.getElementById('hero-sub');
+  const dateEl  = document.getElementById('hero-date');
+
+  const now     = new Date();
+  const month   = now.getMonth() + 1;
+  const day     = now.getDate();
+  const dateStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+  dateEl.textContent = dateStr;
+
+  // typewriter effect helper
+  function typewrite(el, text, speed = 28) {
+    el.textContent = '';
+    el.style.opacity = '1';
+    let i = 0;
+    const tick = () => {
+      el.textContent += text[i++];
+      if (i < text.length) setTimeout(tick, speed);
+    };
+    tick();
+  }
+
+  titleEl.style.opacity = '0.2';
+  titleEl.style.transition = 'opacity 0.4s';
+  subEl.style.opacity   = '0';
+
+  try {
+    // Primary: "on this day" date fact from numbersapi
+    const res  = await fetch(`https://numbersapi.com/${month}/${day}/date?json`, { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+
+    // Split the fact into a punchy title (first sentence) and subtitle (rest)
+    const full   = data.text || '';
+    const dotIdx = full.indexOf('.');
+    let title    = dotIdx > -1 ? full.slice(0, dotIdx + 1) : full;
+    let sub      = dotIdx > -1 && dotIdx < full.length - 2 ? full.slice(dotIdx + 1).trim() : 'A fact from history, served fresh daily.';
+
+    // Keep title under ~80 chars for display — truncate at last space before limit
+    if (title.length > 82) {
+      const cut = title.lastIndexOf(' ', 82);
+      sub = title.slice(cut).trim() + (sub ? ' ' + sub : '');
+      title = title.slice(0, cut) + '…';
+    }
+
+    if (!sub || sub.length < 4) sub = 'A fact from history, served fresh daily.';
+
+    typewrite(titleEl, title, 22);
+    setTimeout(() => {
+      subEl.style.transition = 'opacity 0.6s';
+      subEl.style.opacity = '1';
+      subEl.textContent = sub;
+    }, title.length * 22 + 200);
+
+  } catch (e) {
+    // Fallback static fact if API unreachable
+    const fallbacks = [
+      'Honey never spoils.',
+      'A day on Venus is longer than a year on Venus.',
+      'Cleopatra lived closer in time to the Moon landing than to the pyramids.',
+      'Oxford University is older than the Aztec Empire.',
+      'The Eiffel Tower grows taller in summer.',
+    ];
+    const fb = fallbacks[day % fallbacks.length];
+    typewrite(titleEl, fb, 28);
+    setTimeout(() => {
+      subEl.style.transition = 'opacity 0.6s';
+      subEl.style.opacity = '1';
+      subEl.textContent = 'Drop your audio files, choose a format, convert — everything runs in your browser.';
+    }, fb.length * 28 + 200);
+  }
+})();
+</script>
+</body>
+</html>
